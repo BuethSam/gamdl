@@ -15,6 +15,7 @@ from .downloader import Downloader
 from .downloader_music_video import DownloaderMusicVideo
 from .downloader_post import DownloaderPost
 from .downloader_song import DownloaderSong
+from .playlist import Playlist
 from .downloader_song_legacy import DownloaderSongLegacy
 from .enums import CoverFormat, DownloadMode, MusicVideoCodec, PostQuality, RemuxMode
 from .itunes_api import ItunesApi
@@ -261,6 +262,13 @@ def load_config_file(
     default=downloader_sig.parameters["truncate"].default,
     help="Maximum length of the file/folder names.",
 )
+@click.option(
+    "--playlist-file",
+    "-p",
+    is_flag=True,
+    default=False,
+    help="Save playlist as a .m3u file."
+)
 # DownloaderSong specific options
 @click.option(
     "--codec-song",
@@ -329,6 +337,7 @@ def main(
     exclude_tags: str,
     cover_size: int,
     truncate: int,
+    playlist_file: bool,
     codec_song: SongCodec,
     synced_lyrics_format: SyncedLyricsFormat,
     codec_music_video: MusicVideoCodec,
@@ -447,9 +456,13 @@ def main(
         urls = _urls
     for url_index, url in enumerate(urls, start=1):
         url_progress = f"URL {url_index}/{len(urls)}"
+        playlist: Playlist = None
         try:
             logger.info(f'({url_progress}) Checking "{url}"')
             url_info = downloader.get_url_info(url)
+            if playlist_file and url_info.type == "playlist":
+                name = apple_music_api.get_playlist(url_info.id)["attributes"]["name"]
+                playlist = Playlist(name, output_path)
             download_queue = downloader.get_download_queue(url_info)
         except Exception as e:
             error_count += 1
@@ -489,6 +502,8 @@ def main(
                     webplayback = apple_music_api.get_webplayback(track["id"])
                     tags = downloader_song.get_tags(webplayback, lyrics.unsynced)
                     final_path = downloader.get_final_path(tags, ".m4a")
+                    if playlist is not None:
+                        playlist.add_path(final_path)
                     lyrics_synced_path = downloader_song.get_lyrics_synced_path(
                         final_path
                     )
@@ -597,6 +612,8 @@ def main(
                         track,
                     )
                     final_path = downloader.get_final_path(tags, ".m4v")
+                    if playlist is not None:
+                        playlist.add_path(final_path)
                     cover_url = downloader.get_cover_url(track)
                     cover_file_extesion = downloader.get_cover_file_extension(cover_url)
                     cover_path = downloader_music_video.get_cover_path(
@@ -684,6 +701,8 @@ def main(
                     tags = downloader_post.get_tags(track)
                     post_temp_path = downloader_post.get_post_temp_path(track["id"])
                     final_path = downloader.get_final_path(tags, ".m4v")
+                    if playlist is not None:
+                        playlist.add_path(final_path)
                     cover_url = downloader.get_cover_url(track)
                     cover_file_extesion = downloader.get_cover_file_extension(cover_url)
                     cover_path = downloader_music_video.get_cover_path(
@@ -720,4 +739,7 @@ def main(
                 if temp_path.exists():
                     logger.debug(f'Cleaning up "{temp_path}"')
                     downloader.cleanup_temp_path()
+        if playlist is not None:
+            logger.info(f"Saving playlist {playlist.name} to file")
+            playlist.save_to_file()
     logger.info(f"Done ({error_count} error(s))")
