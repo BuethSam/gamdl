@@ -1,4 +1,7 @@
 import os
+import re
+
+from .downloader import Downloader
 
 class Playlist:
     path_list: list
@@ -9,7 +12,7 @@ class Playlist:
         self,
         name: str,
         output_path: str):
-        self.name = name
+        self.name = re.sub(r'[\\/*?:"<>|]', '', name)
         self.path_list = []
         self.output_path = output_path.__str__()
 
