@@ -535,8 +535,6 @@ def main(
                             ),
                         }
                     final_path = downloader.get_final_path(tags, ".m4a")
-                    if playlist is not None:
-                        playlist.add_path(final_path)
                     lyrics_synced_path = downloader_song.get_lyrics_synced_path(
                         final_path
                     )
@@ -666,8 +664,6 @@ def main(
                         }
                     final_path = downloader.get_final_path(tags, ".m4v")
                     cover_url = downloader.get_cover_url(track_metadata)
-                    if playlist is not None:
-                        playlist.add_path(final_path)
                     cover_file_extesion = downloader.get_cover_file_extension(cover_url)
                     if cover_file_extesion:
                         cover_path = downloader_music_video.get_cover_path(
@@ -756,21 +752,6 @@ def main(
                         )
                     else:
                         cover_path = None
-                        logger.debug(f'Saving cover to "{cover_path}"')
-                        downloader.save_cover(cover_path, cover_url)
-                elif track["type"] == "uploaded-videos":
-                    stream_url = downloader_post.get_stream_url(track)
-                    tags = downloader_post.get_tags(track)
-                    post_temp_path = downloader_post.get_post_temp_path(track["id"])
-                    final_path = downloader.get_final_path(tags, ".m4v")
-                    if playlist is not None:
-                        playlist.add_path(final_path)
-                    cover_url = downloader.get_cover_url(track)
-                    cover_file_extesion = downloader.get_cover_file_extension(cover_url)
-                    cover_path = downloader_music_video.get_cover_path(
-                        final_path,
-                        cover_file_extesion,
-                    )
                     if final_path.exists() and not overwrite:
                         logger.warning(
                             f'({queue_progress}) Post video already exists at "{final_path}", skipping'
@@ -793,6 +774,8 @@ def main(
                     downloader.apply_tags(remuxed_path, tags, cover_url)
                     logger.debug(f'Moving to "{final_path}"')
                     downloader.move_to_output_path(remuxed_path, final_path)
+                if playlist is not None:
+                    playlist.add_path(final_path)
                 if (
                     not synced_lyrics_only
                     and save_playlist
